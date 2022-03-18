@@ -1,0 +1,3 @@
+---
+
+- include_tasks: "setup-{{ kubectl_download_filetype|lower }}.yml"

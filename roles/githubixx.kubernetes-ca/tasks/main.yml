@@ -1,0 +1,601 @@
+---
+- name: Gather instance facts
+  setup:
+  delegate_to: "{{ item }}"
+  delegate_facts: True
+  loop: "{{ groups[k8s_ca_controller_nodes_group] | union(groups[k8s_ca_worker_nodes_group]) | union(groups[k8s_ca_etcd_nodes_group]) }}"
+
+- name: Generate list of IP addresses and hostnames needed for Kubernetes API server certificate
+  set_fact:
+    k8sApiHosts: >-
+      {% set comma = joiner(",") %}{% for item in groups[k8s_ca_controller_nodes_group] -%}
+        {{ comma() }}{{ hostvars[item].ansible_default_ipv4.address }}{{ comma() }}{{ hostvars[item]["ansible_"+hostvars[item]["k8s_interface"]].ipv4.address }}{{ comma() }}{{ item }}{{ comma() }}{{ hostvars[item]["ansible_hostname"] }}
+      {%- endfor %}{% for item in k8s_apiserver_cert_hosts -%}
+        {{ comma() }}{{ item }}
+      {%- endfor %}
+  tags:
+    - kubernetes-ca
+
+- name: Output of hostnames/IPs used for Kubernetes API server certificate
+  debug: var=k8sApiHosts
+  tags:
+    - kubernetes-ca
+
+- name: Generate list of IP addresses and hostnames needed for etcd certificate
+  set_fact:
+    etcdHosts: >-
+      {% set comma = joiner(",") %}{% for item in groups[k8s_ca_etcd_nodes_group] -%}
+        {{ comma() }}{{ hostvars[item].ansible_default_ipv4.address }}{{ comma() }}{{ hostvars[item]["ansible_"+hostvars[item]["k8s_interface"]].ipv4.address }}{{ comma() }}{{ item }}{{ comma() }}{{ hostvars[item]["ansible_hostname"] }}
+      {%- endfor %}{% for item in etcd_cert_hosts -%}
+        {{ comma() }}{{ item }}
+      {%- endfor %}
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Output of hostnames/IPs used for etcd certificate
+  debug: var=etcdHosts
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Create directory for CA and certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_conf_directory_perm }}"
+    state: directory
+  tags:
+    - kubernetes-ca
+
+- name: Create etcd CA configuration file
+  template:
+    src: "ca-etcd-config.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/ca-etcd-config.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Create Kubernetes API server CA configuration file
+  template:
+    src: "ca-k8s-apiserver-config.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/ca-k8s-apiserver-config.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+
+- name: Create the etcd CA certificate request file (CSR)
+  template:
+    src: "ca-etcd-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/ca-etcd-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Create the Kubernetes API server CA certificate request file (CSR)
+  template:
+    src: "ca-k8s-apiserver-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/ca-k8s-apiserver-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+
+- name: Generate the etcd certificate authority (CA) and private key
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -initca ca-etcd-csr.json \
+    | cfssljson -bare ca-etcd
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/ca-etcd-key.pem"
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Set file permissions for etcd CA and private key file
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - ca-etcd.pem
+    - ca-etcd-key.pem
+    - ca-etcd.csr
+
+- name: Generate Kubernetes API server certificate authority (CA) and private key
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -initca ca-k8s-apiserver-csr.json \
+    | cfssljson -bare ca-k8s-apiserver
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/ca-k8s-apiserver-key.pem"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for Kubernetes API server CA and private key
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - ca-k8s-apiserver.pem
+    - ca-k8s-apiserver-key.pem
+    - ca-k8s-apiserver.csr
+
+- name: Create the etcd server CSR file
+  template:
+    src: "cert-etcd-server-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-etcd-server-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Create the etcd peer CSR file
+  template:
+    src: "cert-etcd-peer-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-etcd-peer-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Create the Kubernetes API server key CSR file
+  template:
+    src: "cert-k8s-apiserver-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-k8s-apiserver-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+
+- name: Create the admin user key CSR file
+  template:
+    src: "cert-admin-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-admin-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+
+- name: Create the kube-proxy key CSR file
+  template:
+    src: "cert-k8s-proxy-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-k8s-proxy-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+
+- name: Create the worker key CSR files
+  template:
+    src: "cert-worker-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-{{ item }}-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  with_inventory_hostnames:
+    - "{{ k8s_ca_worker_nodes_group }}"
+  vars:
+    - workerHost: "{{ item }}"
+  tags:
+    - kubernetes-ca
+
+- name: Create the kube-controller-manager key CSR file
+  template:
+    src: "cert-k8s-controller-manager-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-k8s-controller-manager-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+
+- name: Create the kube-controller-manager service-account key CSR file
+  template:
+    src: "cert-k8s-controller-manager-sa-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-k8s-controller-manager-sa-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+
+- name: Create the kube-scheduler key CSR file
+  template:
+    src: "cert-k8s-scheduler-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-k8s-scheduler-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  tags:
+    - kubernetes-ca
+
+- name: Generate TLS server certificate for etcd
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-etcd.pem \
+      -ca-key=ca-etcd-key.pem \
+      -config=ca-etcd-config.json \
+      -hostname={{ etcdHosts }} \
+      -profile=server \
+      cert-etcd-server-csr.json \
+    | cfssljson -bare cert-etcd-server
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-etcd-server-key.pem"
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Set file permissions for etcd server certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - cert-etcd-server.pem
+    - cert-etcd-server-key.pem
+    - cert-etcd-server.csr
+
+- name: Generate TLS peer certificate for etcd
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-etcd.pem \
+      -ca-key=ca-etcd-key.pem \
+      -config=ca-etcd-config.json \
+      -hostname={{ etcdHosts }} \
+      -profile=peer \
+      cert-etcd-peer-csr.json \
+    | cfssljson -bare cert-etcd-peer
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-etcd-peer-key.pem"
+  tags:
+    - kubernetes-ca
+    - kubernetes-ca-etcd
+
+- name: Set file permissions for etcd peer certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - cert-etcd-peer.pem
+    - cert-etcd-peer-key.pem
+    - cert-etcd-peer.csr
+
+- name: Generate TLS certificate for Kubernetes API server
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-k8s-apiserver.pem \
+      -ca-key=ca-k8s-apiserver-key.pem \
+      -config=ca-k8s-apiserver-config.json \
+      -hostname={{ k8sApiHosts }} \
+      -profile=kubernetes \
+      cert-k8s-apiserver-csr.json \
+    | cfssljson -bare cert-k8s-apiserver
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-k8s-apiserver-key.pem"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for Kubernetes API server certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - cert-k8s-apiserver.pem
+    - cert-k8s-apiserver-key.pem
+    - cert-k8s-apiserver.csr
+
+- name: Generate TLS certificate for admin user
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-k8s-apiserver.pem \
+      -ca-key=ca-k8s-apiserver-key.pem \
+      -config=ca-k8s-apiserver-config.json \
+      -profile=kubernetes cert-admin-csr.json \
+    | cfssljson -bare cert-admin
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-admin-key.pem"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for admin user certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - cert-admin.pem
+    - cert-admin-key.pem
+    - cert-admin.csr
+
+- name: Generate TLS certificates for Kubernetes worker hosts (kubelet)
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-k8s-apiserver.pem \
+      -ca-key=ca-k8s-apiserver-key.pem \
+      -config=ca-k8s-apiserver-config.json \
+      -hostname={{ hostvars[item]['ansible_hostname'] }},{{ hostvars[item]['ansible_default_ipv4']['address'] }},{{ hostvars[item]['ansible_'+hostvars[item]['k8s_interface']].ipv4.address }} \
+      -profile=kubernetes \
+      cert-{{ item }}-csr.json \
+    | cfssljson -bare cert-{{ item }}
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-{{ item }}-key.pem"
+  with_inventory_hostnames:
+    - "{{ k8s_ca_worker_nodes_group }}"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for Kubernetes worker certificate files (1/3)
+  file:
+    path: "{{ k8s_ca_conf_directory }}/cert-{{ item }}.pem"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  with_inventory_hostnames:
+    - "{{ k8s_ca_worker_nodes_group }}"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for Kubernetes worker certificate files (2/3)
+  file:
+    path: "{{ k8s_ca_conf_directory }}/cert-{{ item }}-key.pem"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  with_inventory_hostnames:
+    - "{{ k8s_ca_worker_nodes_group }}"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for Kubernetes worker certificate files (3/3)
+  file:
+    path: "{{ k8s_ca_conf_directory }}/cert-{{ item }}.csr"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  with_inventory_hostnames:
+    - "{{ k8s_ca_worker_nodes_group }}"
+  tags:
+    - kubernetes-ca
+
+- name: Generate TLS certificate for kube-proxy
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-k8s-apiserver.pem \
+      -ca-key=ca-k8s-apiserver-key.pem \
+      -config=ca-k8s-apiserver-config.json \
+      -profile=kubernetes \
+      cert-k8s-proxy-csr.json \
+    | cfssljson -bare cert-k8s-proxy
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-k8s-proxy-key.pem"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for kube-proxy certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - cert-k8s-proxy.pem
+    - cert-k8s-proxy-key.pem
+    - cert-k8s-proxy.csr
+
+
+- name: Generate TLS certificate for kube-controller-manager
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-k8s-apiserver.pem \
+      -ca-key=ca-k8s-apiserver-key.pem \
+      -config=ca-k8s-apiserver-config.json \
+      -profile=kubernetes \
+      cert-k8s-controller-manager-csr.json \
+    | cfssljson -bare cert-k8s-controller-manager
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-k8s-controller-manager-key.pem"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for kube-controller-manager certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - cert-k8s-controller-manager.pem
+    - cert-k8s-controller-manager-key.pem
+    - cert-k8s-controller-manager.csr
+
+- name: Generate TLS certificate for kube-controller-manager service account
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-k8s-apiserver.pem \
+      -ca-key=ca-k8s-apiserver-key.pem \
+      -config=ca-k8s-apiserver-config.json \
+      -profile=kubernetes \
+      cert-k8s-controller-manager-sa-csr.json \
+    | cfssljson -bare cert-k8s-controller-manager-sa
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-k8s-controller-manager-sa-key.pem"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for kube-controller-manager service account certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - cert-k8s-controller-manager-sa.pem
+    - cert-k8s-controller-manager-sa-key.pem
+    - cert-k8s-controller-manager-sa.csr
+
+- name: Generate TLS certificate for kube-scheduler
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-k8s-apiserver.pem \
+      -ca-key=ca-k8s-apiserver-key.pem \
+      -config=ca-k8s-apiserver-config.json \
+      -profile=kubernetes \
+      cert-k8s-scheduler-csr.json \
+    | cfssljson -bare cert-k8s-scheduler
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-k8s-scheduler-key.pem"
+  tags:
+    - kubernetes-ca
+
+- name: Set file permissions for kube-scheduler certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/{{ item }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop:
+    - cert-k8s-scheduler.pem
+    - cert-k8s-scheduler-key.pem
+    - cert-k8s-scheduler.csr
+
+- name: Create CSR files for etcd clients
+  template:
+    src: "cert-etcd-client-csr.json.j2"
+    dest: "{{ k8s_ca_conf_directory }}/cert-{{ item }}-csr.json"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: "{{ k8s_ca_file_perm }}"
+  loop: "{{ etcd_additional_clients }}"
+  when: etcd_additional_clients is defined
+  tags:
+    - etcd-clients
+
+- name: Generate certificates for etcd clients
+  shell: >
+    set -o errexit; \
+    set -o pipefail; \
+    cfssl gencert \
+      -ca=ca-etcd.pem \
+      -ca-key=ca-etcd-key.pem \
+      -config=ca-etcd-config.json \
+      -hostname="" \
+      -profile=client \
+      cert-{{ item }}-csr.json \
+    | cfssljson -bare cert-{{ item }}
+  loop: "{{ etcd_additional_clients }}"
+  when: etcd_additional_clients is defined
+  args:
+    executable: "/bin/bash"
+    chdir: "{{ k8s_ca_conf_directory }}"
+    creates: "{{ k8s_ca_conf_directory }}/cert-{{ item }}-key.pem"
+  tags:
+    - etcd-clients
+
+- name: Set file permissions for etcd client certificate files
+  file:
+    path: "{{ k8s_ca_conf_directory }}/cert-{{ item[0] }}{{ item[1] }}"
+    owner: "{{ k8s_ca_certificate_owner }}"
+    group: "{{ k8s_ca_certificate_group }}"
+    mode: '{{ k8s_ca_file_perm }}'
+    modification_time: "preserve"
+    access_time: "preserve"
+  loop: "{{ etcd_additional_clients | product(['.pem', '-key.pem', '.csr']) | list }}"
+  when: etcd_additional_clients is defined
+
