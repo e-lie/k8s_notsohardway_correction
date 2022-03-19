@@ -1,0 +1,80 @@
+
+- hosts: localhost
+  connection: local
+  become: no
+  
+  vars:
+    infra_state: present
+
+  tasks:
+    - name: Create id stagiaire ssh key in hcloud workspace
+      hcloud_ssh_key:
+        name: id_stagiaire
+        public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBXHgv6fDeMM/zbqXpzdANeNbltG74+2Q1pBC9CXRc0M root@lxd-remote"
+        state: "{{ infra_state }}"
+
+    # - name: remove nodes A records
+    #   community.dns.hetzner_dns_record:
+    #     state: '{{ infra_state }}'
+    #     zone: dopl.uk
+    #     record: "{{ item }}"
+    #     type: A
+    #     value: "hostvars[item]['ipv4_address']"
+    #     hetzner_token: "{{ lookup('env','HCLOUD_DNS_TOKEN') }}"
+    #   loop: "{{ groups['hcloud_nodes'] }}"
+    #   when: infra_state == 'absent'
+
+    - setup:
+      delegate_to: hcloud_nodes
+
+    - debug:
+        msg: '{{ hostvars[item] }}'
+      loop: "{{ groups['hcloud_nodes'] }}"
+
+    - name: Create k8s controller nodes
+      hcloud_server:
+        name: "{{ item }}"
+        server_type: cx11
+        image: ubuntu-20.04
+        location: hel1
+        ssh_keys:
+          - id_stagiaire 
+        state: '{{ infra_state }}'
+      loop: "{{ groups['k8s_controllers'] }}"
+      register: controllers
+    
+    - name: Create k8s worker nodes
+      hcloud_server:
+        name: "{{ item }}"
+        server_type: cx21
+        image: ubuntu-20.04
+        location: hel1
+        ssh_keys:
+          - id_stagiaire 
+        state: '{{ infra_state }}'
+      loop: "{{ groups['k8s_workers'] }}"
+      register: workers
+
+    - name: Add controller A records
+      community.dns.hetzner_dns_record:
+        state: '{{ infra_state }}'
+        zone: dopl.uk
+        record: "{{ hostvars[item['hcloud_server']['name']]['inventory_hostname'] }}"
+        type: A
+        value: "{{ item['hcloud_server']['ipv4_address'] }}"
+        hetzner_token: "{{ lookup('env','HCLOUD_DNS_TOKEN') }}"
+      loop: "{{ controllers.results }}"
+      when: infra_state == 'present'
+
+    - name: Add worker A records
+      community.dns.hetzner_dns_record:
+        state: '{{ infra_state }}'
+        zone: dopl.uk
+        record: "{{ hostvars[item['hcloud_server']['name']]['inventory_hostname'] }}"
+        type: A
+        value: "{{ item['hcloud_server']['ipv4_address'] }}"
+        hetzner_token: "{{ lookup('env','HCLOUD_DNS_TOKEN') }}"
+      loop: "{{ workers.results }}"
+      when: infra_state == 'present'
+
+ 
