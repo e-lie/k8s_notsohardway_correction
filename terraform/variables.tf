@@ -1,23 +1,25 @@
-variable "stagiaires_names" {
+variable "worker_names" {
   default = [
-    "manin",
+    "worker-0",
   ]
 }
 
-variable "formateurs_names" {
+variable "controller_names" {
   default = [
-    "elie",
+    "controller-0",
+    "controller-1",
+    "controller-2",
   ]
 }
 
-variable "formation_subdomain" {
-  default = "k8s"
+variable "cluster_subdomain" {
+  default = "k8slaab"
 }
 
-variable "hcloud_vnc_server_type" {
-  default = "cx31"
+variable "hcloud_worker_server_type" {
+  default = "cx21"
 }
 
-variable "hcloud_guacamole_server_type" {
-  default = "cx11"
+variable "hcloud_controller_server_type" {
+  default = "cx21"
 }

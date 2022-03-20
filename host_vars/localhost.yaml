@@ -1,6 +1,0 @@
-k8s_controllers:
-  - controller-0
-  - controller-1
-  - controller-2
-k8s_workers:
-  - worker-0

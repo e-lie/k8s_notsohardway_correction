@@ -12,49 +12,62 @@ terraform {
 }
 
 
-provider "ansible" {
-  # Configuration options
-}
+# provider "ansible" {
+#   # Configuration options
+# }
 
-variable "stagiaires_names" {}
-variable "formateurs_names" {}
-variable "vnc_stagiaires_public_ips" {}
-variable "vnc_formateurs_public_ips" {}
-variable "guacamole_public_ip" {}
-variable "lxd_images_public_ip" {}
-
-variable "guacamole_domain" {}
+variable "worker_names" {}
+variable "worker_domains" {}
+variable "controller_names" {}
+variable "controller_domains" {}
+variable "worker_public_ips" {}
+variable "controller_public_ips" {}
 
 
-resource "ansible_host" "ansible_vnc_servers" {
-  count = length(var.stagiaires_names)
-  inventory_hostname = "vnc-${element(var.stagiaires_names, count.index)}"
-  groups = ["all", "scaleway", "vnc_servers", "vnc_servers_stagiaires", "wireguard"]
+resource "ansible_host" "workers" {
+  count = length(var.worker_names)
+  inventory_hostname = element(var.worker_names, count.index)
+  groups = ["all", "k8s_nodes", "k8s_worker", "vpn"]
   vars = {
-    ansible_host = element(var.vnc_stagiaires_public_ips, count.index)
-    username = element(var.stagiaires_names, count.index)
-    vpn_ip = "10.111.0.1${count.index}"
+    ansible_host = element(var.worker_public_ips, count.index)
+    wireguard_address: "10.8.0.11${count.index + 1}/24"
+    wireguard_endpoint: element(var.worker_domains, count.index)
+    wireguard_port = 51820
+    wireguard_persistent_keepalive: "30"
+    # username = element(var.worker_names, count.index)
+    # vpn_ip = "10.111.0.1${count.index}"
   }
 }
 
-resource "ansible_host" "ansible_vnc_servers_formateur" {
-  count = length(var.formateurs_names)
-  inventory_hostname = "vnc-formateur-${element(var.formateurs_names, count.index)}"
-  groups = ["all", "scaleway", "vnc_servers", "vnc_servers_formateur", "wireguard"]
+resource "ansible_host" "controllers" {
+  count = length(var.controller_names)
+  inventory_hostname = element(var.controller_names, count.index)
+  groups = ["all", "k8s_nodes", "k8s_controller", "k8s_etcd", "vpn"]
   vars = {
-    ansible_host = element(var.vnc_formateurs_public_ips, count.index)
-    username = element(var.formateurs_names, count.index)
-    vpn_ip = "10.111.0.2${count.index}"
+    ansible_host = element(var.controller_public_ips, count.index)
+    wireguard_address = "10.8.0.10${count.index + 1}/24"
+    wireguard_endpoint = element(var.controller_domains, count.index)
+    wireguard_port = 51820
+    wireguard_persistent_keepalive = "30"
+    # username = element(var.controller_names, count.index)
+    # vpn_ip = "10.111.0.2${count.index}"
   }
 }
 
-resource "ansible_host" "ansible_guacamole_server" {
-  inventory_hostname = "guacamole-server"
-  groups = ["all", "scaleway", "guacamole_servers", "wireguard"]
+resource "ansible_host" "workstation" {
+  inventory_hostname = "workstation"
+  groups = ["all", "k8s_kubectl", "k8s_ca", "vpn"]
   vars = {
-    ansible_host = var.guacamole_public_ip
-    guacamole_domain = var.guacamole_domain
-    vpn_ip = "10.111.0.1"
+    wireguard_address = "10.8.0.2/24"
+    wireguard_endpoint = "" # No endpoint configured (wireguard "client" only)
+    ansible_connection = "local"
   }
 }
 
+# resource "ansible_group" "vpn" {
+#   inventory_group_name = "all"
+#   children = ["workers", "controllers"]
+#   vars = {
+#     wireguard_port = "51820"
+#   }
+# }

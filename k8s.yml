@@ -1,0 +1,50 @@
+---
+- hosts: k8s_ca
+  roles:
+    - role: githubixx.cfssl
+      tags: role-cfssl
+    - role: githubixx.kubernetes-ca
+      tags: role-kubernetes-ca
+
+- hosts: k8s_kubectl
+  roles:
+    - role: githubixx.kubectl
+      tags: role-kubectl
+
+- hosts: vpn
+  roles:
+    - role: githubixx.ansible_role_wireguard
+      tags: role-wireguard
+
+- hosts: k8s_etcd
+  roles:
+    - role: githubixx.etcd
+      tags: role-etcd
+
+- hosts: k8s_controller
+  roles:
+    - role: githubixx.harden-linux
+      tags: role-harden-linux
+    - role: githubixx.kubernetes-controller
+      tags: role-kubernetes-controller
+
+- hosts: k8s_worker
+  roles:
+    - role: githubixx.harden-linux
+      tags: role-harden-linux
+    - role: githubixx.containerd
+      tags: role-containerd
+    - role: githubixx.cilium_kubernetes
+      tags: role-cilium-kubernetes
+    - role: githubixx.kubernetes-worker
+      tags: role-kubernetes-worker
+
+# - hosts: traefik
+#   roles:
+#     - role: githubixx.traefik_kubernetes
+#       tags: role-traefik-kubernetes
+
+- hosts: cert_manager
+  roles:
+    - role: githubixx.cert_manager_kubernetes
+      tags: role-cert-manager-kubernetes

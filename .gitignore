@@ -19,3 +19,5 @@ ansible-digital_ocean.cache
 
 *.retry
 geerlingguy.*
+
+facts_cache

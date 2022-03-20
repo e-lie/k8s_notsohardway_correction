@@ -1,14 +1,12 @@
 
 variable "hcloud_dns_token" {}
 
-variable "formation_subdomain" {}
+variable "cluster_subdomain" {}
 
-variable "stagiaires_names" {}
-variable "formateurs_names" {}
-variable "vnc_stagiaires_public_ips" {}
-variable "vnc_formateurs_public_ips" {}
-variable "guacamole_public_ip" {}
-variable "lxd_images_public_ip" {}
+variable "worker_names" {}
+variable "controller_names" {}
+variable "worker_public_ips" {}
+variable "controller_public_ips" {}
 
 
 terraform {
@@ -30,50 +28,46 @@ data "hetznerdns_zone" "dopluk" {
     name = "dopl.uk"
 }
 
-resource "hetznerdns_record" "stagiaires_subdomains" {
-  count = length(var.stagiaires_names)
+resource "hetznerdns_record" "worker_subdomains" {
+  count = length(var.worker_names)
   zone_id = data.hetznerdns_zone.dopluk.id
   type   = "A"
   ttl = 3600
-  name   = "${element(var.stagiaires_names, count.index)}.${var.formation_subdomain}"
-  value  = element(var.vnc_stagiaires_public_ips, count.index)
+  name   = "${element(var.worker_names, count.index)}.${var.cluster_subdomain}"
+  value  = element(var.worker_public_ips, count.index)
 }
 
-resource "hetznerdns_record" "stagiaires_wildcard_subdomains" {
-  count = length(var.stagiaires_names)
+resource "hetznerdns_record" "workers_wildcard_subdomains" {
+  count = length(var.worker_names)
   zone_id = data.hetznerdns_zone.dopluk.id
   type   = "A"
   ttl = 3600
-  name   = "*.${element(var.stagiaires_names, count.index)}.${var.formation_subdomain}"
-  value  = element(var.vnc_stagiaires_public_ips, count.index)
+  name   = "*.${element(var.worker_names, count.index)}.${var.cluster_subdomain}"
+  value  = element(var.worker_public_ips, count.index)
 }
 
-resource "hetznerdns_record" "formateurs_subdomains" {
-  count = length(var.stagiaires_names)
+resource "hetznerdns_record" "controller_subdomains" {
+  count = length(var.worker_names)
   zone_id = data.hetznerdns_zone.dopluk.id
   type   = "A"
   ttl = 3600
-  name   = "${element(var.formateurs_names, count.index)}.${var.formation_subdomain}"
-  value  = element(var.vnc_formateurs_public_ips, count.index)
+  name   = "${element(var.controller_names, count.index)}.${var.cluster_subdomain}"
+  value  = element(var.controller_public_ips, count.index)
 }
 
-resource "hetznerdns_record" "formateurs_wildcard_subdomains" {
-    count = length(var.stagiaires_names)
+resource "hetznerdns_record" "controller_wildcard_subdomains" {
+    count = length(var.worker_names)
   zone_id = data.hetznerdns_zone.dopluk.id
   type   = "A"
   ttl = 3600
-  name   = "*.${element(var.formateurs_names, count.index)}.${var.formation_subdomain}"
-  value  = element(var.vnc_formateurs_public_ips, count.index)
+  name   = "*.${element(var.controller_names, count.index)}.${var.cluster_subdomain}"
+  value  = element(var.controller_public_ips, count.index)
 }
 
-resource "hetznerdns_record" "guacamole_node_subdomain" {
-  zone_id = data.hetznerdns_zone.dopluk.id
-  type   = "A"
-  ttl = 3600
-  name   = "guacamole.${var.formation_subdomain}"
-  value  = var.guacamole_public_ip
+output "worker_domains" {
+  value = hetznerdns_record.worker_subdomains.*.value
 }
 
-output "guacamole_domain" {
-  value = "guacamole.${var.formation_subdomain}.dopl.uk"
+output "controller_domains" {
+  value = hetznerdns_record.controller_subdomains.*.value
 }

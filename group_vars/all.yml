@@ -1,0 +1,55 @@
+# devops101
+ansible_user: root # root is used before harden linux as been ran
+# ansible_user: k8sadmin # changed unix user after harden linux applied
+ansible_become: true
+ansible_become_method: sudo
+
+k8s_apiserver_secure_port: "6443"
+
+k8s_interface: "wgk8slaab" # needed from the kubernetes_ca step
+
+k8s_config_cluster_name: "k8slaab"
+k8s_config_directory: "{{ './k8s_conf' | expanduser }}"
+k8s_config_directory_perm: "0770"
+k8s_config_file_perm: "0660"
+k8s_config_owner: "{{ lookup('env', 'USER') }}"
+k8s_config_group: "{{ lookup('env', 'USER') }}"
+
+
+
+harden_linux_root_password: "$6$mysecretsalt$DsG1Z7qlZPi.bZUDFCSwi6lILDhZQ72ytb3AoaVKRkvvKl6dSSB37LxmGtOgqzVz.5YtLZMXXUFCfTH5xjmGI1"
+harden_linux_deploy_user: k8sadmin
+harden_linux_deploy_user_password: "$6$mysecretsalt$DsG1Z7qlZPi.bZUDFCSwi6lILDhZQ72ytb3AoaVKRkvvKl6dSSB37LxmGtOgqzVz.5YtLZMXXUFCfTH5xjmGI1"
+harden_linux_deploy_user_home: /home/k8sadmin
+harden_linux_deploy_user_public_keys:
+  - ~/.ssh/id_stagiaire.pub
+harden_linux_sshd_settings:
+  # Disable password authentication 
+  "^PasswordAuthentication": "PasswordAuthentication no"
+  # Disable SSH root login  
+  "^PermitRootLogin": "PermitRootLogin no"
+  # Disable tun(4) device forwarding
+  "^PermitTunnel": "PermitTunnel no"
+  # Set SSHd port
+  "^Port ": "Port 22"
+harden_linux_ufw_defaults_user:
+  "^DEFAULT_FORWARD_POLICY": 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+harden_linux_sysctl_settings_user:
+  "net.ipv4.ip_forward": 1
+  "net.ipv6.conf.default.forwarding": 1
+  "net.ipv6.conf.all.forwarding": 1
+harden_linux_ufw_rules:
+  - rule: "allow"
+    to_port: "22"
+    protocol: "tcp"
+  - rule: "allow"
+    to_port: "51820"
+    protocol: "udp"
+harden_linux_ufw_allow_networks:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+harden_linux_sshguard_whitelist:
+  - "127.0.0.0/8"
+  - "::1/128"
+  - "10.8.0.0/24" # wireguard range whitelist

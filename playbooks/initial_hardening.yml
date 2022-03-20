@@ -1,0 +1,5 @@
+- hosts: k8s_nodes
+  roles:
+    - role: githubixx.harden-linux
+      vars:
+        ansible_user: root

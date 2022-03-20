@@ -1,0 +1,4 @@
+etcd_additional_clients:
+  - k8s-apiserver-etcd
+  - traefik
+  - cilium

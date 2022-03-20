@@ -1,71 +1,34 @@
-variable "scaleway_api_secret_key" {}
-variable "scaleway_api_access_key" {}
-variable "scaleway_orga_id" {}
-
-variable "digitalocean_token" {}
-
 variable "hcloud_token" {}
 variable "hcloud_dns_token" {}
 
-# variable "ovh_application_key" {}
-# variable "ovh_application_secret" {}
-# variable "ovh_consumer_key" {}
-
-# module "servers" {
-#   source = "./servers_providers/scaleway"
-
-#   scaleway_api_secret_key = var.scaleway_api_secret_key
-#   scaleway_api_access_key = var.scaleway_api_access_key
-#   scaleway_orga_id        = var.scaleway_orga_id
-#   stagiaires_names        = var.stagiaires_names
-#   formateurs_names        = var.formateurs_names
-# }
-
 module "servers" {
-  source = "./servers_providers/hcloud"
+  source = "./hcloud_infra"
 
   hcloud_token              = var.hcloud_token
-  formation_subdomain       = var.formation_subdomain
-  stagiaires_names          = var.stagiaires_names
-  formateurs_names          = var.formateurs_names
-  vnc_server_type           = var.hcloud_vnc_server_type
-  guacamole_server_type     = var.hcloud_guacamole_server_type
+  cluster_subdomain       = var.cluster_subdomain
+  worker_names          = var.worker_names
+  controller_names          = var.controller_names
+  worker_server_type           = var.hcloud_worker_server_type
+  controller_server_type     = var.hcloud_controller_server_type
+  ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBXHgv6fDeMM/zbqXpzdANeNbltG74+2Q1pBC9CXRc0M stagiaire-id"
 }
-
-
-# module "domains" {
-#   source                    = "./domains_providers/ovh"
-#   ovh_application_key       = var.ovh_application_key
-#   ovh_application_secret    = var.ovh_application_secret
-#   ovh_consumer_key          = var.ovh_consumer_key
-#   stagiaires_names          = var.stagiaires_names
-#   formateurs_names          = var.formateurs_names
-#   vnc_stagiaires_public_ips = module.servers.vnc_stagiaires_public_ips
-#   vnc_formateurs_public_ips = module.servers.vnc_formateurs_public_ips
-#   guacamole_public_ip       = module.servers.guacamole_public_ip
-# }
 
 module "domains" {
-  source                    = "./domains_providers/hcloud"
+  source                    = "./hcloud_dns"
   hcloud_dns_token        = var.hcloud_dns_token
-  formation_subdomain       = var.formation_subdomain
-  stagiaires_names          = var.stagiaires_names
-  formateurs_names          = var.formateurs_names
-  vnc_stagiaires_public_ips = module.servers.vnc_stagiaires_public_ips
-  vnc_formateurs_public_ips = module.servers.vnc_formateurs_public_ips
-  guacamole_public_ip       = module.servers.guacamole_public_ip
-  lxd_images_public_ip      = module.servers.lxd_images_public_ip
+  cluster_subdomain       = var.cluster_subdomain
+  worker_names          = var.worker_names
+  controller_names          = var.controller_names
+  worker_public_ips = module.servers.worker_public_ips
+  controller_public_ips = module.servers.controller_public_ips
 }
-
 
 module "ansible_hosts" {
   source                    = "./ansible_hosts"
-  stagiaires_names          = var.stagiaires_names
-  formateurs_names          = var.formateurs_names
-  vnc_stagiaires_public_ips = module.servers.vnc_stagiaires_public_ips
-  vnc_formateurs_public_ips = module.servers.vnc_formateurs_public_ips
-  guacamole_public_ip       = module.servers.guacamole_public_ip
-  lxd_images_public_ip      = module.servers.lxd_images_public_ip
-
-  guacamole_domain          = module.domains.guacamole_domain
+  worker_names          = var.worker_names
+  worker_domains     = module.domains.worker_domains
+  controller_domains     = module.domains.controller_domains
+  controller_names          = var.controller_names
+  worker_public_ips = module.servers.worker_public_ips
+  controller_public_ips = module.servers.controller_public_ips
 }
