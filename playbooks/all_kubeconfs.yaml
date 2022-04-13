@@ -1,0 +1,5 @@
+- import_playbook: ../githubixx_playbooks/kubeauthconfig/kube-admin-user.yml
+- import_playbook: ../githubixx_playbooks/kubeauthconfig/kube-controller-manager.yml
+- import_playbook: ../githubixx_playbooks/kubeauthconfig/kube-proxy.yml
+- import_playbook: ../githubixx_playbooks/kubeauthconfig/kube-scheduler.yml
+- import_playbook: ../githubixx_playbooks/kubeauthconfig/kubelets.yml
