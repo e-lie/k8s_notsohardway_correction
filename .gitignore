@@ -21,3 +21,5 @@ ansible-digital_ocean.cache
 geerlingguy.*
 
 facts_cache
+
+k8s_files/**/**

@@ -47,7 +47,7 @@ resource "hetznerdns_record" "workers_wildcard_subdomains" {
 }
 
 resource "hetznerdns_record" "controller_subdomains" {
-  count = length(var.worker_names)
+  count = length(var.controller_names)
   zone_id = data.hetznerdns_zone.dopluk.id
   type   = "A"
   ttl = 3600
@@ -56,7 +56,7 @@ resource "hetznerdns_record" "controller_subdomains" {
 }
 
 resource "hetznerdns_record" "controller_wildcard_subdomains" {
-    count = length(var.worker_names)
+    count = length(var.controller_names)
   zone_id = data.hetznerdns_zone.dopluk.id
   type   = "A"
   ttl = 3600

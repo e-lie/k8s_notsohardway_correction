@@ -23,8 +23,8 @@
 
 - hosts: k8s_controller
   roles:
-    - role: githubixx.harden-linux
-      tags: role-harden-linux
+    # - role: githubixx.harden-linux
+    #   tags: role-harden-linux
     - role: githubixx.kubernetes-controller
       tags: role-kubernetes-controller
 

@@ -6,15 +6,37 @@ ansible_become_method: sudo
 
 k8s_apiserver_secure_port: "6443"
 
-k8s_interface: "wgk8slaab" # needed from the kubernetes_ca step
+k8s_interface: "wgk8slaab" # needed from the kubernetes_ca to last step
+
+k8s_ca_conf_directory: "{{ lookup('env', 'PROJECT_DIR') + '/k8s_files/certs' }}"
+# Directory permissions for directory specified in "k8s_ca_conf_directory"
+k8s_ca_conf_directory_perm: "0770"
+# File permissions for certificates, csr, and so on
+k8s_ca_file_perm: "0660"
+# Owner of the certificate files (you should probably change this)
+k8s_ca_certificate_owner: "{{ lookup('env', 'USER') }}"
+# Group to which the certificate files belongs to (you should probably change this)
+k8s_ca_certificate_group: "{{ lookup('env', 'USER') }}"
+
 
 k8s_config_cluster_name: "k8slaab"
-k8s_config_directory: "{{ './k8s_conf' | expanduser }}"
+k8s_config_directory: "{{ lookup('env', 'PROJECT_DIR') + '/k8s_files/confs' }}"
 k8s_config_directory_perm: "0770"
 k8s_config_file_perm: "0660"
 k8s_config_owner: "{{ lookup('env', 'USER') }}"
 k8s_config_group: "{{ lookup('env', 'USER') }}"
 
+
+# Same as "k8s_config_directory" in this case but could be different.
+k8s_encryption_config_directory: "{{k8s_config_directory}}"
+k8s_encryption_config_owner: "{{ lookup('env', 'USER') }}"
+k8s_encryption_config_group: "{{ lookup('env', 'USER') }}"
+k8s_encryption_config_directory_perm: "0770"
+k8s_encryption_config_file_perm: "0660"
+k8s_encryption_config_key: "YLXdi1xnMLOM4+Iud5aeNO6ps6JaKYTCDaMYJRrD+gk="
+
+etcd_ca_conf_directory: "{{ k8s_ca_conf_directory }}"
+etcd_interface: "wgk8slaab" # should run on same interface as kube-apiserver, wireguard iface here
 
 
 harden_linux_root_password: "$6$mysecretsalt$DsG1Z7qlZPi.bZUDFCSwi6lILDhZQ72ytb3AoaVKRkvvKl6dSSB37LxmGtOgqzVz.5YtLZMXXUFCfTH5xjmGI1"

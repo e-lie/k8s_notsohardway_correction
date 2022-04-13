@@ -4,3 +4,6 @@ export ANSIBLE_DIR=$PROJECT_DIR/ansible/
 export ANSIBLE_INVENTORY=$PROJECT_DIR/terraform-inventory.py
 export ANSIBLE_PLAYBOOK=$PROJECT_DIR/ansible/k8s.yml
 export ANSIBLE_TF_DIR=$TERRAFORM_DIR
+
+
+export KUBECONFIG=./k8s_files/confs/admin.kubeconfig

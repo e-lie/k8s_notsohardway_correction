@@ -28,7 +28,7 @@ resource "hcloud_ssh_key" "id_stagiaire" {
 
 resource "hcloud_server" "workers" {
   count = length(var.worker_names)
-  name  = "vnc-${element(var.worker_names, count.index)}.${var.cluster_subdomain}"
+  name  = "${element(var.worker_names, count.index)}.${var.cluster_subdomain}"
   server_type = var.worker_server_type
   image = "ubuntu-20.04"
   location = "hel1"
@@ -37,7 +37,7 @@ resource "hcloud_server" "workers" {
 
 resource "hcloud_server" "controllers" {
   count = length(var.controller_names)
-  name  = "vnc-formateur-${element(var.controller_names, count.index)}.${var.cluster_subdomain}"
+  name  = "${element(var.controller_names, count.index)}.${var.cluster_subdomain}"
   server_type = var.controller_server_type 
   image = "ubuntu-20.04"
   location = "hel1"
