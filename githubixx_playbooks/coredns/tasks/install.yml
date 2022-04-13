@@ -4,6 +4,7 @@
     module: k8s
     state: present
     definition: "{{ lookup('template', 'templates/serviceaccount.yml.j2') | from_yaml }}"
+    validate_certs: no
   tags:
     - install-serviceaccount
 
@@ -12,6 +13,7 @@
     module: k8s
     state: present
     definition: "{{ lookup('template', 'templates/clusterrole.yml.j2') | from_yaml }}"
+    validate_certs: no
   tags:
     - install-clusterrole
 
@@ -20,6 +22,7 @@
     module: k8s
     state: present
     definition: "{{ lookup('template', 'templates/clusterrolebinding.yml.j2') | from_yaml }}"
+    validate_certs: no
   tags:
     - install-clusterrolebinding
 
@@ -28,6 +31,7 @@
     module: k8s
     state: present
     definition: "{{ lookup('template', 'templates/configmap.yml.j2') | from_yaml }}"
+    validate_certs: no
   tags:
     - install-configmap
 
@@ -36,6 +40,7 @@
     module: k8s
     state: present
     definition: "{{ lookup('template', 'templates/deployment.yml.j2') | from_yaml }}"
+    validate_certs: no
   tags:
     - install-deployment
 
@@ -44,5 +49,6 @@
     module: k8s
     state: present
     definition: "{{ lookup('template', 'templates/service.yml.j2') | from_yaml }}"
+    validate_certs: no
   tags:
     - install-service
