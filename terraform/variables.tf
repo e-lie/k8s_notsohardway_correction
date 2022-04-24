@@ -1,6 +1,7 @@
 variable "worker_names" {
   default = [
     "worker-0",
+    "worker-1",
   ]
 }
 
@@ -13,7 +14,8 @@ variable "controller_names" {
 }
 
 variable "cluster_subdomain" {
-  default = "k8slaab"
+  default = " < votre subdomain > " # à remplacer
+  # default = "k8slaab"
 }
 
 variable "hcloud_worker_server_type" {
