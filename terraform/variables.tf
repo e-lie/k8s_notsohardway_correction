@@ -14,8 +14,8 @@ variable "controller_names" {
 }
 
 variable "cluster_subdomain" {
-  default = " < votre subdomain > " # à remplacer
-  # default = "k8slaab"
+  # default = " < votre subdomain > " # à remplacer
+  default = "k8slaab"
 }
 
 variable "hcloud_worker_server_type" {

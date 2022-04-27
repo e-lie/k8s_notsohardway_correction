@@ -1,8 +1,7 @@
 
 
 ```
-ansible-galaxy collection install hetzner.hcloud
-ansible-galaxy collection install community.dns
+ansible-galaxy collection install hetzner.hcloud community.dns community.general
 pip install hcloud # or use pacman
 ```
 

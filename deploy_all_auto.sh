@@ -4,22 +4,22 @@ set -eu
 
 sudo pip3 install kubernetes
 
-ansible-playbook -K --tags=role-wireguard k8s.yml
+ansible-playbook --tags=role-wireguard k8s.yml
 sleep 5
 ping 10.8.0.101 -c 3
 sleep 2
 ping 10.8.0.102 -c 3
 ping 10.8.0.103 -c 3
 ping 10.8.0.111 -c 3
-ansible-playbook -K --tags=role-cfssl k8s.yml
+ansible-playbook --tags=role-cfssl k8s.yml
 sleep 2
-ansible-playbook -K --tags=role-kubernetes-ca k8s.yml
+ansible-playbook --tags=role-kubernetes-ca k8s.yml
 sleep 2
-ansible-playbook -K playbooks/all_kubeconfs.yaml
+ansible-playbook playbooks/all_kubeconfs.yaml
 sleep 2
-ansible-playbook -K githubixx_playbooks/kubeencryptionconfig/kubeencryptionconfig.yml
+ansible-playbook githubixx_playbooks/kubeencryptionconfig/kubeencryptionconfig.yml
 sleep 2
-ansible-playbook -K --tags=role-etcd k8s.yml
+ansible-playbook --tags=role-etcd k8s.yml
 sleep 5
 # checking etc cluster
 ansible -m shell -e "etcd_conf_dir=/etc/etcd" -a 'ETCDCTL_API=3 etcdctl endpoint health \
@@ -28,9 +28,9 @@ ansible -m shell -e "etcd_conf_dir=/etc/etcd" -a 'ETCDCTL_API=3 etcdctl endpoint
 --cert={{ etcd_conf_dir }}/cert-etcd-server.pem \
 --key={{ etcd_conf_dir }}/cert-etcd-server-key.pem' \
 k8s_etcd
-ansible-playbook -K --tags=role-kubernetes-controller k8s.yml
+ansible-playbook --tags=role-kubernetes-controller k8s.yml
 sleep 5
-ansible-playbook -K ./githubixx_playbooks/kubectlconfig/kubectlconfig.yml
+ansible-playbook ./githubixx_playbooks/kubectlconfig/kubectlconfig.yml
 export KUBECONFIG=./k8s_files/confs/admin.kubeconfig
 kubectl cluster-info
 sleep 2
@@ -40,7 +40,7 @@ ansible-playbook --tags=role-containerd k8s.yml
 sleep 2
 ansible-playbook --tags=role-kubernetes-worker k8s.yml
 sleep 2
-ansible-playbook -K --tags=role-cilium-kubernetes -e action=install k8s.yml
+ansible-playbook --tags=role-cilium-kubernetes -e action=install k8s.yml
 kubectl get nodes -o wide
 ansible-playbook githubixx_playbooks/coredns/coredns.yml
 sleep 2
