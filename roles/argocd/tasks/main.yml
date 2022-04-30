@@ -1,0 +1,26 @@
+- name: Ensure {{ argocd_namespace }} namespace exists
+  k8s:
+    name: "{{ argocd_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: "{{ argocd_state }}"
+    validate_certs: "{{ argocd_validate_k8s_certs }}"
+  # delegate_to: 127.0.0.1
+  # run_once: true
+
+- name: Download ArgoCD manifest to local /tmp.
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    dest: /tmp/argocd.yaml
+    mode: '0664'
+  # delegate_to: 127.0.0.1
+  # run_once: true
+
+- name: Deploy or remove ArgoCD
+  k8s:
+    src: /tmp/argocd.yaml
+    namespace: "{{ argocd_namespace }}" 
+    state: "{{ argocd_state }}"
+    validate_certs: "{{ argocd_validate_k8s_certs }}"
+  # delegate_to: 127.0.0.1
+  # run_once: true

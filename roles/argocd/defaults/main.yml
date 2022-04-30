@@ -1,0 +1,4 @@
+
+argocd_state: present
+argocd_namespace: argocd
+argocd_validate_k8s_certs: no

@@ -19,7 +19,7 @@ variable "cluster_subdomain" {
 }
 
 variable "hcloud_worker_server_type" {
-  default = "cx21"
+  default = "cx41"
 }
 
 variable "hcloud_controller_server_type" {

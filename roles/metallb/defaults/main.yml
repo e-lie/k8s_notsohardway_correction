@@ -1,0 +1,5 @@
+metallb_namespace: metallb-system
+metallb_config_name: metallb-config
+metallb_state: absent
+metallb_k8s_worker_group: k8s_worker
+metallb_validate_k8s_certs: no

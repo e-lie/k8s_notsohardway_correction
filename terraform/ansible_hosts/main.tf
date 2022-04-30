@@ -16,22 +16,28 @@ terraform {
 #   # Configuration options
 # }
 
-variable "worker_names" {}
+# variable "worker_names" {}
 variable "worker_domains" {}
-variable "controller_names" {}
+# variable "controller_names" {}
 variable "controller_domains" {}
-variable "worker_public_ips" {}
-variable "controller_public_ips" {}
+# variable "worker_public_ips" {}
+variable "workers" {}
+variable "worker_networks" {}
+variable "controllers" {}
+variable "controller_networks" {}
+# variable "controller_public_ips" {}
 
 
 resource "ansible_host" "workers" {
-  count = length(var.worker_names)
-  inventory_hostname = element(var.worker_names, count.index)
+  count = length(var.workers)
+  inventory_hostname = element(var.workers.*.name, count.index)
   groups = ["all", "k8s_nodes", "k8s_worker", "vpn"]
   vars = {
-    ansible_host = element(var.worker_public_ips, count.index)
-    wireguard_address: "10.8.0.11${count.index + 1}/24"
-    wireguard_endpoint: element(var.worker_domains, count.index)
+    # ansible_host = element(var.worker_public_ips, count.index)
+    ansible_host = element(var.workers.*.ipv4_address, count.index)
+    wireguard_address = "10.8.0.11${count.index + 1}/24"
+    # wireguard_endpoint: element(var.worker_domains, count.index)
+    wireguard_endpoint = element(var.worker_networks.*.ip, count.index)
     wireguard_port = 51820
     wireguard_persistent_keepalive: "30"
     # username = element(var.worker_names, count.index)
@@ -40,13 +46,13 @@ resource "ansible_host" "workers" {
 }
 
 resource "ansible_host" "controllers" {
-  count = length(var.controller_names)
-  inventory_hostname = element(var.controller_names, count.index)
+  count = length(var.controllers)
+  inventory_hostname = element(var.controllers.*.name, count.index)
   groups = ["all", "k8s_nodes", "k8s_controller", "k8s_etcd", "vpn"]
   vars = {
-    ansible_host = element(var.controller_public_ips, count.index)
+    ansible_host = element(var.controllers.*.ipv4_address, count.index)
     wireguard_address = "10.8.0.10${count.index + 1}/24"
-    wireguard_endpoint = element(var.controller_domains, count.index)
+    wireguard_endpoint = element(var.controller_networks.*.ip, count.index)
     wireguard_port = 51820
     wireguard_persistent_keepalive = "30"
     # username = element(var.controller_names, count.index)

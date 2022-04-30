@@ -1,11 +1,13 @@
 ---
-- name: Check if Helm command is installed locally
-  shell: hash helm  # noqa 305
-  delegate_to: 127.0.0.1
-  run_once: true
-  changed_when: false
-  args:
-    executable: "/bin/bash"
+# - name: Check if Helm command is installed locally
+#   shell: echo prout
+#   # shell: which helm
+#   # shell: hash helm  # noqa 305
+#   delegate_to: 127.0.0.1
+#   run_once: true
+#   changed_when: false
+#   args:
+#     executable: "/bin/bash"
 
 - name: Set default action to only render template via Helm
   set_fact:
