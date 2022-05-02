@@ -6,10 +6,10 @@ sudo pip3 install kubernetes
 
 function test_wireguard (){
     sleep 5
-    ping 10.8.0.101 -c 3
-    ping 10.8.0.102 -c 3
-    ping 10.8.0.103 -c 3
-    ping 10.8.0.111 -c 3
+    ansible -m shell -a 'ping 10.8.0.101 -c 3' worker-0
+    ansible -m shell -a 'ping 10.8.0.102 -c 3' worker-1
+    ansible -m shell -a 'ping 10.8.0.103 -c 3' controller-0
+    ansible -m shell -a 'ping 10.8.0.111 -c 3' controller-1
 }
 
 function test_etcd () {
@@ -70,6 +70,7 @@ k8s_playbook role-kubernetes-controller
 echo "######## Setup kubectl config for cluster admin connection"
 other_playbook  ./githubixx_playbooks/kubectlconfig/kubectlconfig.yml
 export KUBECONFIG=./k8s_files/confs/admin.kubeconfig
+export K8S_AUTH_KUBECONFIG=./k8s_files/confs/admin.kubeconfig # for ansible modules
 test_control_plane
 
 echo "######## Install containerd runtime on worker nodes"
@@ -78,9 +79,8 @@ k8s_playbook role-containerd
 echo "######## Install worker nodes components kubelet kube-proxy etc and connect nodes to control plane"
 k8s_playbook role-kubernetes-worker
 
-# echo "######## Install cillium CNI plugin in the cluster"
+echo "######## Install cillium CNI plugin in the cluster"
 ansible-playbook -K -e action=install --tags=role-cilium-kubernetes k8s.yml
 
-
-# echo "######## Install CoreDNS in the cluster"
+echo "######## Install CoreDNS in the cluster"
 other_playbook githubixx_playbooks/coredns/coredns.yml

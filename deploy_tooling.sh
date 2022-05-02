@@ -45,7 +45,7 @@ EOF
 helm upgrade --install metallb metallb \
   --repo https://metallb.github.io/metallb \
   --namespace metallb-system --create-namespace \
-  --version 0.12.1
+  --version 0.12.1 --value=playbooks/metallb-values.yaml
 
 helm upgrade --install ingress-nginx ingress-nginx \
   --repo https://kubernetes.github.io/ingress-nginx \

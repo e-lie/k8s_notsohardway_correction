@@ -5,8 +5,8 @@
     kind: Namespace
     state: "{{ metallb_state }}"
     validate_certs: "{{ metallb_validate_k8s_certs }}"
-  delegate_to: 127.0.0.1
-  run_once: true
+  # delegate_to: 127.0.0.1
+  # run_once: true
 
 - name: Ensure MetalLB ConfigMap exists
   k8s:
@@ -14,24 +14,50 @@
     namespace: "{{ metallb_namespace }}"
     state: "{{ metallb_state }}"
     validate_certs: "{{ metallb_validate_k8s_certs }}"
-  delegate_to: 127.0.0.1
-  run_once: true
-  # tags: [postgres, configmap, postgres_configmap]
+  # delegate_to: 127.0.0.1
+  # run_once: true
 
-- name: Ensure MetalLB Secret exists
-  k8s:
-    definition: "{{ lookup('template', 'secret.yaml.j2') }}"
-    namespace: "{{ metallb_namespace }}"
-    state: "{{ metallb_state }}"
-    validate_certs: "{{ metallb_validate_k8s_certs }}"
-  delegate_to: 127.0.0.1
-  run_once: true
+# - name: Ensure MetalLB Secret exists
+#   k8s:
+#     definition: "{{ lookup('template', 'secret.yaml.j2') }}"
+#     namespace: "{{ metallb_namespace }}"
+#     state: "{{ metallb_state }}"
+#     validate_certs: "{{ metallb_validate_k8s_certs }}"
+  # delegate_to: 127.0.0.1
+  # run_once: true
+
+- name: Download Metallb manifest to local /tmp.
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/metallb.yaml
+    dest: /tmp/metallb.yaml
+    mode: '0664'
 
 - name: Ensure MetalLB deployment exists
   k8s:
-    definition: "{{ lookup('template', 'metallb.yaml.j2') }}"
+    src: /tmp/metallb.yaml
     namespace: "{{ metallb_namespace }}"
     state: "{{ metallb_state }}"
     validate_certs: "{{ metallb_validate_k8s_certs }}"
-  delegate_to: 127.0.0.1
-  run_once: true
+  # delegate_to: 127.0.0.1
+  # run_once: true
+
+
+
+
+
+
+# - name: Add metallb chart repo
+#   kubernetes.core.helm_repository:
+#     name: metallb
+#     repo_url: "https://metallb.github.io/metallb"
+
+# - name: Deploy metallb with helm chart
+#   kubernetes.core.helm:
+#     name: metallb
+#     chart_ref: metallb/metallb
+#     chart_version: 0.12.1
+#     release_namespace: "{{ metallb_namespace }}"
+#     create_namespace: true
+#     validate_certs: "{{ metallb_validate_certs }}"
+#     values: "{{ lookup('template', 'helm_values.yaml.j2') | from_yaml }}"
+

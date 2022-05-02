@@ -9,9 +9,10 @@ data:
     - name: default
       protocol: layer2
       addresses:
-{% for node in groups[metallb_k8s_worker_group] %}
-        - {{ hostvars[node].ansible_default_ipv4}}/32
-{% endfor %}
+       - 65.108.63.168/32
+{# {% for node in groups[metallb_k8s_worker_group] %}
+        - {{ hostvars[node].ansible_host}}/32
+{% endfor %} #}
 {# {% for floating_ip_host in groups["floating_ips"] %}
         - {{ hostvars[floating_ip_host].ansible_host}}/32
 {% endfor %} #}

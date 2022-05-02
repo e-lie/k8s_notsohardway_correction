@@ -3,10 +3,10 @@ variable "hcloud_dns_token" {}
 
 variable "cluster_subdomain" {}
 
-variable "worker_names" {}
-variable "controller_names" {}
-variable "worker_public_ips" {}
-variable "controller_public_ips" {}
+# variable "worker_names" {}
+# variable "controller_names" {}
+# variable "worker_public_ips" {}
+# variable "controller_public_ips" {}
 variable "workers" {}
 variable "controllers" {}
 
@@ -31,15 +31,12 @@ data "hetznerdns_zone" "dopluk" {
 }
 
 resource "hetznerdns_record" "worker_subdomains" {
-  # for_each = var.workers
-  count = length(var.worker_names)
+  count = length(var.workers)
   zone_id = data.hetznerdns_zone.dopluk.id
   type   = "A"
   ttl = 3600
-  # name = "${each.value["name"]}.${var.cluster_subdomain}"
-  # value = each.value["ipv4_address"]
-  name   = "${element(var.worker_names, count.index)}.${var.cluster_subdomain}"
-  value  = element(var.worker_public_ips, count.index)
+  name   = "${element(var.workers.*.name, count.index)}.${var.cluster_subdomain}"
+  value  = element(var.workers.*.ipv4_address, count.index)
 }
 
 resource "hetznerdns_record" "workers_wildcard_subdomains" {

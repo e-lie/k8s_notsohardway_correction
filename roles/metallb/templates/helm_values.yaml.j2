@@ -1,0 +1,17 @@
+configInline:
+  address-pools:
+  - name: default
+    protocol: layer2
+    addresses:
+{% for worker in groups[metallb_k8s_worker_group] %}
+      - {{ hostvars[worker].ansible_host}}/32
+{% endfor %}
+{# {% for floating_ip_host in groups["floating_ips"] %}
+        - {{ hostvars[floating_ip_host].ansible_host}}/32
+{% endfor %} #}
+      {# # - 116.202.190.206/32
+      # - 78.46.184.98/32
+      # - 94.130.189.184/32
+      # - 116.202.181.18/32
+      # - 88.198.208.76/32
+      # - 116.203.17.202/32 #}

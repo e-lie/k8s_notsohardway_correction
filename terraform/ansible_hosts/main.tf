@@ -38,6 +38,7 @@ resource "ansible_host" "workers" {
     wireguard_address = "10.8.0.11${count.index + 1}/24"
     # wireguard_endpoint: element(var.worker_domains, count.index)
     wireguard_endpoint = element(var.worker_networks.*.ip, count.index)
+    # wireguard_endpoint = element(var.workers.*.ipv4_address, count.index)
     wireguard_port = 51820
     wireguard_persistent_keepalive: "30"
     # username = element(var.worker_names, count.index)
@@ -52,7 +53,8 @@ resource "ansible_host" "controllers" {
   vars = {
     ansible_host = element(var.controllers.*.ipv4_address, count.index)
     wireguard_address = "10.8.0.10${count.index + 1}/24"
-    wireguard_endpoint = element(var.controller_networks.*.ip, count.index)
+    # wireguard_endpoint = element(var.controller_networks.*.ip, count.index)
+    wireguard_endpoint = element(var.controllers.*.ipv4_address, count.index)
     wireguard_port = 51820
     wireguard_persistent_keepalive = "30"
     # username = element(var.controller_names, count.index)

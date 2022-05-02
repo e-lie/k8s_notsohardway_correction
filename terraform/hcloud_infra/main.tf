@@ -27,17 +27,17 @@ resource "hcloud_ssh_key" "id_stagiaire" {
 }
 
 
-# resource "hcloud_network" "k8s_net" {
-#   name     = "k8s-net"
-#   ip_range = "10.10.0.0/16"
-# }
+resource "hcloud_network" "k8s_net" {
+  name     = "k8s-net"
+  ip_range = "10.10.0.0/16"
+}
 
-# resource "hcloud_network_subnet" "k8s_main_subnet" {
-#   network_id   = hcloud_network.k8s_net.id
-#   type         = "cloud"
-#   network_zone = "eu-central"
-#   ip_range     = "10.10.1.0/24"
-# }
+resource "hcloud_network_subnet" "k8s_main_subnet" {
+  network_id   = hcloud_network.k8s_net.id
+  type         = "cloud"
+  network_zone = "eu-central"
+  ip_range     = "10.10.1.0/24"
+}
 
 
 resource "hcloud_server" "workers" {
@@ -49,25 +49,20 @@ resource "hcloud_server" "workers" {
   location = "hel1"
   ssh_keys = [hcloud_ssh_key.id_stagiaire.id]
 
-  # network {
-  #   network_id = hcloud_network.k8s_net.id
-  #   ip         = "10.0.1.${count.index}"
-  # }
-
-  # depends_on = [
-  #   hcloud_network_subnet.k8s_main_subnet
-  # ]
+  depends_on = [
+    hcloud_network_subnet.k8s_main_subnet
+  ]
 }
 
-# resource "hcloud_server_network" "worker_networks" {
-#   count = length(hcloud_server.workers)
-#   server_id  = element(hcloud_server.workers.*.id, count.index)
-#   network_id = hcloud_network.k8s_net.id
-#   ip         = "10.10.1.1${count.index}"
-#   depends_on = [
-#     hcloud_network_subnet.k8s_main_subnet
-#   ]
-# }
+resource "hcloud_server_network" "worker_networks" {
+  count = length(hcloud_server.workers)
+  server_id  = element(hcloud_server.workers.*.id, count.index)
+  network_id = hcloud_network.k8s_net.id
+  ip         = "10.10.1.1${count.index}"
+  depends_on = [
+    hcloud_network_subnet.k8s_main_subnet
+  ]
+}
 
 
 
@@ -78,16 +73,6 @@ resource "hcloud_server" "workers" {
 #   server_id = hcloud_server.node1.id
 # }
 
-# resource "hcloud_server" "workers" {
-#   count = length(var.worker_names)
-#   name  = "${element(var.worker_names, count.index)}.${var.cluster_subdomain}"
-#   server_type = var.worker_server_type
-#   image = "ubuntu-20.04"
-#   location = "hel1"
-#   ssh_keys = [hcloud_ssh_key.id_stagiaire.id]
-# }
-
-
 resource "hcloud_server" "controllers" {
   count = length(var.controller_names)
   # name  = "${element(var.controller_names, count.index)}.${var.cluster_subdomain}"
@@ -97,46 +82,41 @@ resource "hcloud_server" "controllers" {
   location = "hel1"
   ssh_keys = [hcloud_ssh_key.id_stagiaire.id]
 
-  # network {
-  #   network_id = hcloud_network.k8s_net.id
-  #   ip         = "10.0.1.10${count.index}"
-  # }
-
-  # depends_on = [
-  #   hcloud_network_subnet.k8s_main_subnet
-  # ]
+  depends_on = [
+    hcloud_network_subnet.k8s_main_subnet
+  ]
 }
 
-# resource "hcloud_server_network" "controller_networks" {
-#   count = length(hcloud_server.controllers)
-#   server_id  = element(hcloud_server.controllers.*.id, count.index)
-#   network_id = hcloud_network.k8s_net.id
-#   ip         = "10.10.1.10${count.index}"
-#   depends_on = [
-#     hcloud_network_subnet.k8s_main_subnet
-#   ]
-# }
+resource "hcloud_server_network" "controller_networks" {
+  count = length(hcloud_server.controllers)
+  server_id  = element(hcloud_server.controllers.*.id, count.index)
+  network_id = hcloud_network.k8s_net.id
+  ip         = "10.10.1.10${count.index}"
+  depends_on = [
+    hcloud_network_subnet.k8s_main_subnet
+  ]
+}
 
 output "workers" {
   value = hcloud_server.workers
 }
 
-# output "worker_networks" {
-#   value = hcloud_server_network.worker_networks
-# }
+output "worker_networks" {
+  value = hcloud_server_network.worker_networks
+}
 
 output "controllers" {
   value = hcloud_server.controllers
 }
 
-# output "controller_networks" {
-#   value = hcloud_server_network.controller_networks
+output "controller_networks" {
+  value = hcloud_server_network.controller_networks
+}
+
+# output "controller_public_ips" {
+#   value = hcloud_server.controllers.*.ipv4_address
 # }
 
-output "controller_public_ips" {
-  value = hcloud_server.controllers.*.ipv4_address
-}
-
-output "worker_public_ips" {
-  value = hcloud_server.workers.*.ipv4_address
-}
+# output "worker_public_ips" {
+#   value = hcloud_server.workers.*.ipv4_address
+# }
